@@ -1,0 +1,70 @@
+#!/bin/sh
+
+set -eu
+
+script_dir=$(
+	CDPATH= cd -- "$(dirname -- "$0")" && pwd
+)
+repo_root=$(dirname "$script_dir")
+mono_src="$repo_root/vendor/fonts/garamond-mono"
+libre_src="$repo_root/vendor/fonts/garamond-libre"
+font_root="${FONT_ROOT:-$HOME/.local/share/fonts}"
+mono_dest="$font_root/GaramondMono"
+libre_dest="$font_root/GaramondLibre"
+mono_tag="v1.010"
+mono_asset="GaramondMono-1.010.tar.xz"
+mono_url="https://github.com/MihailJP/garamond-mono/releases/download/$mono_tag/$mono_asset"
+libre_tag="1.4"
+libre_asset="garamond-libre_1.4.zip"
+libre_url="https://github.com/dbenjaminmiller/garamond-libre/releases/download/$libre_tag/$libre_asset"
+
+download_asset() {
+	repo=$1
+	tag=$2
+	asset=$3
+	url=$4
+	out_dir=$5
+	if command -v gh >/dev/null 2>&1; then
+		gh release download "$tag" --repo "$repo" --pattern "$asset" -D "$out_dir" --clobber
+		return
+	fi
+	if command -v curl >/dev/null 2>&1; then
+		curl -L "$url" -o "$out_dir/$asset"
+		return
+	fi
+	printf 'need gh or curl to download %s\n' "$asset" >&2
+	exit 1
+}
+
+if [ ! -d "$mono_src" ] || [ ! -d "$libre_src" ]; then
+	printf 'font submodules are missing; run git submodule update --init --recursive\n' >&2
+	exit 1
+fi
+
+tmpdir=$(mktemp -d)
+cleanup() {
+	rm -rf "$tmpdir"
+}
+trap cleanup EXIT INT TERM
+
+mkdir -p "$mono_dest" "$libre_dest"
+rm -f "$mono_dest"/* "$libre_dest"/*
+
+if command -v fontforge >/dev/null 2>&1; then
+	make -C "$mono_src" ttf
+	cp -f "$mono_src"/GaramondMono*.ttf "$mono_dest"/
+else
+	download_asset "MihailJP/garamond-mono" "$mono_tag" "$mono_asset" "$mono_url" "$tmpdir"
+	tar -xf "$tmpdir/$mono_asset" -C "$tmpdir"
+	cp -f "$tmpdir"/GaramondMono/*.ttf "$mono_dest"/
+fi
+
+download_asset "dbenjaminmiller/garamond-libre" "$libre_tag" "$libre_asset" "$libre_url" "$tmpdir"
+unzip -oj "$tmpdir/$libre_asset" '*.otf' -d "$libre_dest" >/dev/null
+
+fc-cache -fv "$font_root"
+
+printf '%s\n' \
+	"Installed Garamond Mono into $mono_dest" \
+	"Installed Garamond Libre into $libre_dest" \
+	"Default st family in config.h is Garamond Mono."

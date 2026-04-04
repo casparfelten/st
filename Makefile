@@ -6,6 +6,7 @@ include config.mk
 
 SRC = st.c x.c boxdraw.c hb.c
 OBJ = $(SRC:.c=.o)
+FONT_SUBMODULES = vendor/fonts/garamond-mono vendor/fonts/garamond-libre
 
 all: options st
 
@@ -27,6 +28,22 @@ $(OBJ): config.h config.mk
 
 st: $(OBJ)
 	$(CC) -o $@ $(OBJ) $(STLDFLAGS)
+
+font-submodules:
+	git submodule update --init --recursive $(FONT_SUBMODULES)
+
+font-build: font-submodules
+	@if command -v fontforge >/dev/null 2>&1; then \
+		$(MAKE) -C vendor/fonts/garamond-mono ttf; \
+	else \
+		echo "fontforge is required to build Garamond Mono from source"; \
+		exit 1; \
+	fi
+
+font-install: font-submodules
+	./scripts/install-fonts
+
+fonts-install: font-install
 
 clean:
 	rm -f st $(OBJ) st-$(VERSION).tar.gz *.rej *.orig *.o
@@ -59,4 +76,4 @@ uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/st-urlhandler
 	rm -f $(DESTDIR)$(MANPREFIX)/man1/st.1
 
-.PHONY: all options clean dist install uninstall
+.PHONY: all options clean dist install uninstall font-submodules font-build font-install fonts-install

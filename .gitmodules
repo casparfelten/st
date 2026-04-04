@@ -1,0 +1,6 @@
+[submodule "vendor/fonts/garamond-mono"]
+	path = vendor/fonts/garamond-mono
+	url = https://github.com/MihailJP/garamond-mono.git
+[submodule "vendor/fonts/garamond-libre"]
+	path = vendor/fonts/garamond-libre
+	url = https://github.com/dbenjaminmiller/garamond-libre.git
